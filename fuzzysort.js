@@ -74,6 +74,7 @@
           score: result.score,
           _indexes: result._indexes,
           obj: obj,
+          refIndex: i,
         }; // hidden
 
         if (resultsLen < limit) {
@@ -84,43 +85,6 @@
           if (result.score > q.peek().score) q.replaceTop(result);
         }
       }
-
-      // options.keys
-    } else if (options && options.keys) {
-      var scoreFn = options["scoreFn"] || defaultScoreFn;
-      var keys = options.keys;
-      var keysLen = keys.length;
-      for (var i = 0; i < targetsLen; ++i) {
-        var obj = targets[i];
-        var objResults = new Array(keysLen);
-        for (var keyI = 0; keyI < keysLen; ++keyI) {
-          var key = keys[keyI];
-          var target = getValue(obj, key);
-          if (!target) {
-            objResults[keyI] = NULL;
-            continue;
-          }
-          if (!isObj(target)) target = getPrepared(target);
-
-          if ((searchBitflags & target._bitflags) !== searchBitflags)
-            objResults[keyI] = NULL;
-          else objResults[keyI] = algorithm(preparedSearch, target);
-        }
-        objResults.obj = obj; // before scoreFn so scoreFn can use it
-        var score = scoreFn(objResults);
-        if (score === NULL) continue;
-        if (score < threshold) continue;
-        objResults.score = score;
-        if (resultsLen < limit) {
-          q.add(objResults);
-          ++resultsLen;
-        } else {
-          ++limitedCount;
-          if (score > q.peek().score) q.replaceTop(objResults);
-        }
-      }
-
-      // no keys
     } else {
       for (var i = 0; i < targetsLen; ++i) {
         var target = targets[i];
@@ -130,6 +94,7 @@
         if ((searchBitflags & target._bitflags) !== searchBitflags) continue;
         var result = algorithm(preparedSearch, target);
         if (result === NULL) continue;
+        result.refIndex = i;
         if (result.score < threshold) continue;
         if (resultsLen < limit) {
           q.add(result);
@@ -240,29 +205,10 @@
           _bitflags: 0,
           score: target.score,
           _indexes: NULL,
+          refIndex: i,
           obj: obj,
         }; // hidden
         results.push(result);
-        if (results.length >= limit) return results;
-      }
-    } else if (options && options.keys) {
-      for (var i = 0; i < targets.length; i++) {
-        var obj = targets[i];
-        var objResults = new Array(options.keys.length);
-        for (var keyI = options.keys.length - 1; keyI >= 0; --keyI) {
-          var target = getValue(obj, options.keys[keyI]);
-          if (!target) {
-            objResults[keyI] = NULL;
-            continue;
-          }
-          if (!isObj(target)) target = getPrepared(target);
-          target.score = INT_MIN;
-          target._indexes.len = 0;
-          objResults[keyI] = target;
-        }
-        objResults.obj = obj;
-        objResults.score = INT_MIN;
-        results.push(objResults);
         if (results.length >= limit) return results;
       }
     } else {
@@ -271,6 +217,7 @@
         if (!target) continue;
         if (!isObj(target)) target = getPrepared(target);
         target.score = INT_MIN;
+        target.refIndex = i;
         target._indexes.len = 0;
         results.push(target);
         if (results.length >= limit) return results;
@@ -551,20 +498,6 @@
   var preparedSearchCache = new Map();
   var matchesSimple = [];
   var matchesStrict = [];
-
-  // for use with keys. just returns the maximum score
-  var defaultScoreFn = (a) => {
-    var max = INT_MIN;
-    var len = a.length;
-    for (var i = 0; i < len; ++i) {
-      var result = a[i];
-      if (result === NULL) continue;
-      var score = result.score;
-      if (score > max) max = score;
-    }
-    if (max === INT_MIN) return NULL;
-    return max;
-  };
 
   // prop = 'key'              2.5ms optimized for this case, seems to be about as fast as direct obj[prop]
   // prop = 'key1.key2'        10ms
