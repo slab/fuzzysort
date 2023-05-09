@@ -11,9 +11,6 @@
 
   fuzzysort.go('mr', ['Monitor.cpp', 'MeshRenderer.cpp'])
   // [{score: -18, target: "MeshRenderer.cpp"}, {score: -6009, target: "Monitor.cpp"}]
-
-  fuzzysort.highlight(fuzzysort.single('fs', 'Fuzzy Search'), '<b>', '</b>')
-  // <b>F</b>uzzy <b>S</b>earch
 */
 
 // UMD (Universal Module Definition) for fuzzysort
@@ -149,82 +146,6 @@
     for (var i = resultsLen - 1; i >= 0; --i) results[i] = q.poll();
     results.total = resultsLen + limitedCount;
     return results;
-  };
-
-  var highlight = (result, hOpen, hClose) => {
-    if (typeof hOpen === "function") return highlightCallback(result, hOpen);
-    if (result === NULL) return NULL;
-    if (hOpen === undefined) hOpen = "<b>";
-    if (hClose === undefined) hClose = "</b>";
-    var highlighted = "";
-    var matchesIndex = 0;
-    var opened = false;
-    var target = result.target;
-    var targetLen = target.length;
-    var indexes = result._indexes;
-    indexes = indexes.slice(0, indexes.len).sort((a, b) => a - b);
-    for (var i = 0; i < targetLen; ++i) {
-      var char = target[i];
-      if (indexes[matchesIndex] === i) {
-        ++matchesIndex;
-        if (!opened) {
-          opened = true;
-          highlighted += hOpen;
-        }
-
-        if (matchesIndex === indexes.length) {
-          highlighted += char + hClose + target.substr(i + 1);
-          break;
-        }
-      } else {
-        if (opened) {
-          opened = false;
-          highlighted += hClose;
-        }
-      }
-      highlighted += char;
-    }
-
-    return highlighted;
-  };
-  var highlightCallback = (result, cb) => {
-    if (result === NULL) return NULL;
-    var target = result.target;
-    var targetLen = target.length;
-    var indexes = result._indexes;
-    indexes = indexes.slice(0, indexes.len).sort((a, b) => a - b);
-    var highlighted = "";
-    var matchI = 0;
-    var indexesI = 0;
-    var opened = false;
-    var result = [];
-    for (var i = 0; i < targetLen; ++i) {
-      var char = target[i];
-      if (indexes[indexesI] === i) {
-        ++indexesI;
-        if (!opened) {
-          opened = true;
-          result.push(highlighted);
-          highlighted = "";
-        }
-
-        if (indexesI === indexes.length) {
-          highlighted += char;
-          result.push(cb(highlighted, matchI++));
-          highlighted = "";
-          result.push(target.substr(i + 1));
-          break;
-        }
-      } else {
-        if (opened) {
-          opened = false;
-          result.push(cb(highlighted, matchI++));
-          highlighted = "";
-        }
-      }
-      highlighted += char;
-    }
-    return result;
   };
 
   var indexes = (result) =>
@@ -723,7 +644,6 @@
   return {
     single: single,
     go: go,
-    highlight: highlight,
     prepare: prepare,
     indexes: indexes,
     cleanup: cleanup,
