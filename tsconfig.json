@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "module": "es6",
+    "target": "es6",
+    "lib": ["es2015"],
+    "outDir": "./dist",
+    "declaration": true,
+    "declarationDir": "./dist/typings",
+    "moduleResolution": "node"
+  },
+  "include": ["src", "test"]
+}

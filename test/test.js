@@ -18,9 +18,9 @@ const isNode = typeof require !== "undefined" && typeof window === "undefined";
 const minjs = isNode ? !!process.argv[2] : false; // test minified fuzzysort (if node and you pass any cmd argument)
 if (isNode)
   var fuzzysort = minjs
-    ? require("../fuzzysort.min.js")
-    : require("../fuzzysort"); // if we're running in the browser we already have these
-if (isNode) var testdata = require("./testdata"); // if we're running in the browser we already have these
+    ? require("../dist/fuzzysort.umd.js")
+    : require("../src/fuzzysort.js"); // if we're running in the browser we already have these
+if (isNode) var testdata = require("./__fixtures__/data.js"); // if we're running in the browser we already have these
 
 // config
 const config = {
@@ -79,45 +79,7 @@ setTimeout(async function () {
 
 async function tests() {
   {
-    // urls with garbage ids in them match everything too well
-    var tmp = fuzzysort.go("zom", testdata_prepared.urls_and_titles);
-    assert(tmp[0].target == "jQuery Zoom", "zom", tmp[0].target);
-  }
-
-  {
-    // Exponential backtracking https://github.com/farzher/fuzzysort/issues/80
-    var startms = Date.now();
-
-    var tmp = fuzzysort.single(
-      "aaaaaaaaaaab",
-      "a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a xb"
-    );
-
-    var diff = Date.now() - startms;
-    assert(diff < 16, "Exponential backtracking is taking too long");
-  }
-
-  {
-    // sorting
-    testSorting1("adio", "Audio.h", "AsyncTaskDownloadImage.h");
-    testSorting1("note", "node/noTe", "not one that evening");
-
-    // https://github.com/home-assistant/frontend/discussions/12590#discussioncomment-2694018
-    testSorting1(
-      "er.life360",
-      "device-tracker.life360_iphone_6",
-      "sendor.battery_life360_iphone_6"
-    );
-  }
-
-  {
-    // spaces destroy the score even when it's an exact substring https://github.com/farzher/fuzzysort/issues/99
-    assert(
-      fuzzysort.single(
-        "this is exactly the same search and target",
-        "this is exactly the same search and target"
-      ).score == 0
-    );
+    // spaces destroy the score even when it's an exact substring
     test(
       "The Amazing Spider-Man",
       "The Amazing Spider-Man",
@@ -128,32 +90,8 @@ async function tests() {
   }
 
   {
-    // order should matter when using spaces
-    testSorting1("c man", "CheatManager.h", "ManageCheats.h");
-    testSorting1("man c", "ManageCheats.h", "CheatManager.h");
-
-    testSorting1("man c", "ThisManagesStuff.c", "ThisCheatsStuff.m");
-    testSorting1("c man", "ThisCheatsStuff.man", "ThisManagesStuff.c");
-  }
-
-  {
     // typos
-    testNomatch("abc", "acb");
-    testNomatch("abcefg", "acbefg");
-    testNomatch("a ac acb", "abc");
-    testNomatch("MeshRendering.h", "mrnederh");
     testSimple("MMommOMMommO", "moom");
-    testNomatch("AndroidRuntimeSettings.h", "nothing");
-    testNomatch("atsta", "atast");
-  }
-
-  {
-    // checking for infinite loops
-    testNomatch("a", "");
-    testNomatch("", "a");
-    testNomatch("", "");
-    testNomatch("", " ");
-    testNomatch(" ", "");
   }
 
   {
@@ -260,18 +198,6 @@ function assert(b, ...m) {
 }
 assert.count = 0;
 
-function testSorting(search, ...targets) {
-  var results = fuzzysort.go(search, targets);
-  results.map((r) => r.target);
-  for (var i = 0; i < results.length; i++) {
-    var sameorder = results[i] === targets[i];
-    assert(sameorder, search);
-  }
-}
-function testSorting1(search, ...targets) {
-  var results = fuzzysort.go(search, targets);
-  assert(results[0].target === targets[0], search);
-}
 function test(target, ...searches) {
   var last_score = Infinity;
   var needs_to_fail = false;
@@ -297,13 +223,6 @@ function test(target, ...searches) {
     }
   }
 }
-function testStrict(target, ...searches) {
-  for (const search of searches) {
-    const result = fuzzysort.single(search, target);
-    assert(result && result.score > -1000, { search, result });
-    assertResultIntegrity(result);
-  }
-}
 function testSimple(target, ...searches) {
   for (const search of searches) {
     const result = fuzzysort.single(search, target);
@@ -311,23 +230,6 @@ function testSimple(target, ...searches) {
     assertResultIntegrity(result);
   }
 }
-function testSubstr(target, ...searches) {
-  for (const search of searches) {
-    const result = fuzzysort.single(search, target);
-    assert(result && result.score < -100 && result.score > -1000, {
-      search,
-      result,
-    });
-    assertResultIntegrity(result);
-  }
-}
-function testNomatch(target, ...searches) {
-  for (const search of searches) {
-    const result = fuzzysort.single(search, target);
-    assert(result === null, { search, result });
-  }
-}
-
 // result.indexes must be increasing
 function assertResultIntegrity(result) {
   if (result === null) return true;

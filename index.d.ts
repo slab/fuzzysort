@@ -15,11 +15,9 @@ declare namespace Fuzzysort {
     readonly total: number;
   }
 
-  interface KeyResult<T> extends Result {
+  interface KeyResults<T> extends ReadonlyArray<Result> {
     /** Your original object */
     readonly obj: T;
-  }
-  interface KeyResults<T> extends ReadonlyArray<KeyResult<T>> {
     /** Total matches before limit */
     readonly total: number;
   }
