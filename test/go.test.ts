@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { go } from "../src/fuzzysort";
 import { urlsAndTitles } from "./__fixtures__/data";
 
@@ -31,4 +31,52 @@ test("sorting", () => {
 
   testSorting("man c", "ThisManagesStuff.c", "ThisCheatsStuff.m");
   testSorting("c man", "ThisCheatsStuff.man", "ThisManagesStuff.c");
+});
+
+describe("refIndex", () => {
+  test("strings", () => {
+    expect(go("abc", ["hi abc", "def"])[0].refIndex).toEqual(0);
+    expect(go("abc", ["a", "hi abc", "def"])[0].refIndex).toEqual(1);
+    expect(go("abc", ["a", "hi abc"])[0].refIndex).toEqual(1);
+  });
+
+  test("objects", () => {
+    expect(
+      go("def", [{ id: "2", value: "def" }], {
+        key: "value",
+      })[0].refIndex
+    ).toEqual(0);
+
+    expect(
+      go(
+        "def",
+        [
+          { id: "1", value: "abc" },
+          { id: "2", value: "def" },
+        ],
+        {
+          key: "value",
+        }
+      )[0].refIndex
+    ).toEqual(1);
+
+    expect(
+      go("def", [{ id: "1", value: "abc" }, {}, { id: "2", value: "def" }], {
+        key: "value",
+      })[0].refIndex
+    ).toEqual(2);
+  });
+
+  test("nested keys", () => {
+    expect(
+      go(
+        "def",
+        [
+          { id: "1", topic: { name: "abc" } },
+          { id: "2", topic: { name: "def" } },
+        ],
+        { key: "topic.name" }
+      )[0].refIndex
+    ).toEqual(1);
+  });
 });

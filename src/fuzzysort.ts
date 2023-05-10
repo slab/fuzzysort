@@ -13,21 +13,94 @@
   // [{score: -18, target: "MeshRenderer.cpp"}, {score: -6009, target: "Monitor.cpp"}]
 */
 
-export const single = (search, target) => {
+export interface Result {
+  /**
+   * Higher is better
+   *
+   * 0 is a perfect match; -1000 is a bad match
+   */
+  readonly score: number;
+
+  /** Your original target string */
+  readonly target: string;
+
+  readonly refIndex: number;
+}
+
+export interface Results extends ReadonlyArray<Result> {
+  /** Total matches before limit */
+  readonly total: number;
+}
+
+export interface KeyResults<T> extends ReadonlyArray<Result> {
+  /** Your original object */
+  readonly obj: T;
+  /** Total matches before limit */
+  readonly total: number;
+}
+
+export interface Prepared {
+  /** Your original target string */
+  readonly target: string;
+  readonly _targetLower: string;
+  readonly _targetLowerCodes: number[];
+  _nextBeginningIndexes: number[] | null;
+  readonly _bitflags: number;
+  score: number;
+  readonly _indexes: number[];
+  readonly obj: any;
+}
+
+export interface Options {
+  /** Don't return matches worse than this (higher is faster) */
+  threshold?: number;
+
+  /** Don't return more results than this (lower is faster) */
+  limit?: number;
+
+  /** If true, returns all results for an empty search */
+  all?: boolean;
+}
+
+export interface KeyOptions extends Options {
+  key: string | ReadonlyArray<string>;
+}
+
+export const single = (
+  search: string,
+  target: string | Prepared
+): Prepared | null => {
   if (!search || !target) return NULL;
 
   var preparedSearch = getPreparedSearch(search);
-  if (!isObj(target)) target = getPrepared(target);
+  if (!isObj(target)) target = getPrepared(target as string);
 
   var searchBitflags = preparedSearch.bitflags;
+  // @ts-expect-error
   if ((searchBitflags & target._bitflags) !== searchBitflags) return NULL;
 
-  return algorithm(preparedSearch, target);
+  return algorithm(preparedSearch, target as Prepared);
 };
 
-export const go = (search, targets, options) => {
-  if (!search)
+export function go(
+  search: string,
+  targets: ReadonlyArray<string | Prepared | undefined>,
+  options?: Options
+): Results;
+export function go<T>(
+  search: string,
+  targets: ReadonlyArray<T | undefined>,
+  options: KeyOptions
+): KeyResults<T>;
+export function go(
+  search: string,
+  targets: ReadonlyArray<unknown>,
+  options?: Options | KeyOptions
+): Results | KeyResults<unknown> {
+  if (!search) {
+    // @ts-expect-error
     return options && options.all ? all(search, targets, options) : noResults;
+  }
 
   var preparedSearch = getPreparedSearch(search);
   var searchBitflags = preparedSearch.bitflags;
@@ -43,7 +116,7 @@ export const go = (search, targets, options) => {
   // This code is copy/pasted 3 times for performance reasons [options.keys, options.key, no keys]
 
   // options.key
-  if (options && options.key) {
+  if (options && "key" in options && options.key) {
     var key = options.key;
     for (var i = 0; i < targetsLen; ++i) {
       var obj = targets[i];
@@ -70,15 +143,18 @@ export const go = (search, targets, options) => {
       }; // hidden
 
       if (resultsLen < limit) {
+        // @ts-expect-error
         q.add(result);
         ++resultsLen;
       } else {
         ++limitedCount;
+        // @ts-expect-error
         if (result.score > q.peek().score) q.replaceTop(result);
       }
     }
   } else {
     for (var i = 0; i < targetsLen; ++i) {
+      // @ts-expect-error
       var target = targets[i];
       if (!target) continue;
       if (!isObj(target)) target = getPrepared(target);
@@ -89,26 +165,33 @@ export const go = (search, targets, options) => {
       result.refIndex = i;
       if (result.score < threshold) continue;
       if (resultsLen < limit) {
+        // @ts-expect-error
         q.add(result);
         ++resultsLen;
       } else {
         ++limitedCount;
+        // @ts-expect-error
         if (result.score > q.peek().score) q.replaceTop(result);
       }
     }
   }
 
+  // @ts-expect-error
   if (resultsLen === 0) return noResults;
   var results = new Array(resultsLen);
+  // @ts-expect-error
   for (var i = resultsLen - 1; i >= 0; --i) results[i] = q.poll();
+  // @ts-expect-error
   results.total = resultsLen + limitedCount;
+  // @ts-expect-error
   return results;
-};
+}
 
-export const indexes = (result) =>
+export const indexes = (result: Result): number[] =>
+  // @ts-expect-error
   result._indexes.slice(0, result._indexes.len).sort((a, b) => a - b);
 
-export const prepare = (target) => {
+export const prepare = (target: string): Prepared => {
   if (typeof target !== "string") target = "";
   var info = prepareLowerInfo(target);
   return {
@@ -157,7 +240,7 @@ var prepareSearch = (search) => {
   };
 };
 
-var getPrepared = (target) => {
+var getPrepared = (target: string) => {
   if (target.length > 999) return prepare(target); // don't cache huge targets
   var targetPrepared = preparedCache.get(target);
   if (targetPrepared !== undefined) return targetPrepared;
@@ -165,7 +248,7 @@ var getPrepared = (target) => {
   preparedCache.set(target, targetPrepared);
   return targetPrepared;
 };
-var getPreparedSearch = (search) => {
+var getPreparedSearch = (search: string) => {
   if (search.length > 999) return prepareSearch(search); // don't cache huge searches
   var searchPrepared = preparedSearchCache.get(search);
   if (searchPrepared !== undefined) return searchPrepared;
@@ -174,8 +257,9 @@ var getPreparedSearch = (search) => {
   return searchPrepared;
 };
 
-var all = (search, targets, options) => {
+var all = (search: string, targets, options) => {
   var results = [];
+  // @ts-expect-error
   results.total = targets.length;
 
   var limit = (options && options.limit) || INT_MAX;
@@ -219,7 +303,7 @@ var all = (search, targets, options) => {
   return results;
 };
 
-var algorithm = (preparedSearch, prepared, allowSpaces = false) => {
+var algorithm = (preparedSearch, prepared: Prepared, allowSpaces = false) => {
   if (allowSpaces === false && preparedSearch.containsSpace)
     return algorithmSpaces(preparedSearch, prepared);
 
@@ -358,6 +442,7 @@ var algorithm = (preparedSearch, prepared, allowSpaces = false) => {
 
     for (var i = 0; i < matchesBestLen; ++i)
       prepared._indexes[i] = matchesBest[i];
+    // @ts-expect-error
     prepared._indexes.len = matchesBestLen;
 
     return prepared;
@@ -376,15 +461,21 @@ var algorithmSpaces = (preparedSearch, target) => {
     result = algorithm(search, target);
     if (result === NULL) return NULL;
 
+    // @ts-expect-error
     score += result.score;
 
     // dock points based on order otherwise "c man" returns Manifest.cpp instead of CheatManager.h
+    // @ts-expect-error
     if (result._indexes[0] < first_seen_index_last_search) {
+      // @ts-expect-error
       score -= first_seen_index_last_search - result._indexes[0];
     }
+    // @ts-expect-error
     first_seen_index_last_search = result._indexes[0];
 
+    // @ts-expect-error
     for (var j = 0; j < result._indexes.len; ++j)
+      // @ts-expect-error
       seen_indexes.add(result._indexes[j]);
   }
 
@@ -398,19 +489,22 @@ var algorithmSpaces = (preparedSearch, target) => {
     return allowSpacesResult;
   }
 
+  // @ts-expect-error
   result.score = score;
 
   var i = 0;
+  // @ts-expect-error
   for (let index of seen_indexes) result._indexes[i++] = index;
+  // @ts-expect-error
   result._indexes.len = i;
 
   return result;
 };
 
-var prepareLowerInfo = (str) => {
+var prepareLowerInfo = (str: string) => {
   var strLen = str.length;
   var lower = str.toLowerCase();
-  var lowerCodes = []; // new Array(strLen)    sparse array is too slow
+  var lowerCodes: number[] = []; // new Array(strLen)    sparse array is too slow
   var bitflags = 0;
   var containsSpace = false; // space isn't stored in bitflags because of how searching with a space works
 
@@ -461,10 +555,10 @@ var prepareBeginningIndexes = (target) => {
   }
   return beginningIndexes;
 };
-var prepareNextBeginningIndexes = (target) => {
+var prepareNextBeginningIndexes = (target: string) => {
   var targetLen = target.length;
   var beginningIndexes = prepareBeginningIndexes(target);
-  var nextBeginningIndexes = []; // new Array(targetLen)     sparse array is too slow
+  var nextBeginningIndexes: number[] = []; // new Array(targetLen)     sparse array is too slow
   var lastIsBeginning = beginningIndexes[0];
   var lastIsBeginningI = 0;
   for (var i = 0; i < targetLen; ++i) {
@@ -512,8 +606,9 @@ var isObj = (x) => {
 var INT_MAX = Infinity;
 var INT_MIN = -INT_MAX;
 var noResults = [];
+// @ts-expect-error
 noResults.total = 0;
-var NULL = null;
+var NULL: null = null;
 
 // Hacked version of https://github.com/lemire/FastPriorityQueue.js
 var fastpriorityqueue = (r) => {
@@ -537,6 +632,7 @@ var fastpriorityqueue = (r) => {
       e[a] = v;
     };
   return (
+    // @ts-expect-error
     (a.add = (r) => {
       var a = o;
       e[o++] = r;
@@ -548,21 +644,27 @@ var fastpriorityqueue = (r) => {
         e[a] = e[v];
       e[a] = r;
     }),
+    // @ts-expect-error
     (a.poll = (r) => {
       if (0 !== o) {
         var a = e[0];
+        // @ts-expect-error
         return (e[0] = e[--o]), v(), a;
       }
     }),
+    // @ts-expect-error
     (a.peek = (r) => {
       if (0 !== o) return e[0];
     }),
+    // @ts-expect-error
     (a.replaceTop = (r) => {
+      // @ts-expect-error
       (e[0] = r), v();
     }),
     a
   );
 };
+// @ts-expect-error
 var q = fastpriorityqueue(); // reuse this
 
 // TODO: (feature) frecency

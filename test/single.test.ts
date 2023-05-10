@@ -43,3 +43,7 @@ test("no match", () => {
   testNomatch("", " ");
   testNomatch(" ", "");
 });
+
+test("not return refIndex", () => {
+  expect(single("abc", "abc")).not.toHaveProperty("refIndex");
+});

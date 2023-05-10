@@ -5,7 +5,7 @@ export default defineConfig({
     outDir: "dist",
     lib: {
       name: "fuzzysort",
-      entry: "./src/fuzzysort.js",
+      entry: "./src/fuzzysort.ts",
       formats: ["es", "umd"],
     },
     sourcemap: true,

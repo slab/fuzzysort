@@ -19,12 +19,14 @@
     "url": "https://github.com/slab/fuzzysort.git"
   },
   "main": "dist/fuzzysort.umd.js",
+  "types": "dist/fuzzysort.d.ts",
   "module": "dist/fuzzysort.mjs",
   "scripts": {
     "test": "vitest",
     "test-min": "node test/test.js min",
     "dev": "vite",
-    "build": "vite build",
+    "prepare": "npm run build",
+    "build": "vite build && tsc --emitDeclarationOnly && api-extractor run && rm -rf dist/typings",
     "preview": "vite preview"
   },
   "files": [
@@ -33,6 +35,7 @@
     "index.d.ts"
   ],
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.34.8",
     "typescript": "^5.0.4",
     "vite": "^4.3.5",
     "vitest": "^0.31.0"

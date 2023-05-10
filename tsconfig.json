@@ -8,5 +8,5 @@
     "declarationDir": "./dist/typings",
     "moduleResolution": "node"
   },
-  "include": ["src", "test"]
+  "include": ["src"]
 }
