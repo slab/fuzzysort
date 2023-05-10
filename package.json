@@ -30,9 +30,7 @@
     "preview": "vite preview"
   },
   "files": [
-    "fuzzysort.js",
-    "fuzzysort.min.js",
-    "index.d.ts"
+    "dist"
   ],
   "devDependencies": {
     "@microsoft/api-extractor": "^7.34.8",

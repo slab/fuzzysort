@@ -32,9 +32,12 @@ export interface Results extends ReadonlyArray<Result> {
   readonly total: number;
 }
 
-export interface KeyResults<T> extends ReadonlyArray<Result> {
+export interface KeyResult<T> extends Result {
   /** Your original object */
   readonly obj: T;
+}
+
+export interface KeyResults<T> extends ReadonlyArray<KeyResult<T>> {
   /** Total matches before limit */
   readonly total: number;
 }
