@@ -75,11 +75,10 @@ export const single = (
 ): Prepared | null => {
   if (!search || !target) return NULL;
 
-  var preparedSearch = getPreparedSearch(search);
-  if (!isObj(target)) target = getPrepared(target as string);
+  const preparedSearch = getPreparedSearch(search);
+  if (!isObj(target)) target = prepare(target as string);
 
-  var searchBitflags = preparedSearch.bitflags;
-  // @ts-expect-error
+  const searchBitflags = preparedSearch.bitflags;
   if ((searchBitflags & target._bitflags) !== searchBitflags) return NULL;
 
   return algorithm(preparedSearch, target as Prepared);
@@ -105,27 +104,26 @@ export function go(
     return options && options.all ? all(search, targets, options) : noResults;
   }
 
-  var preparedSearch = getPreparedSearch(search);
-  var searchBitflags = preparedSearch.bitflags;
-  var containsSpace = preparedSearch.containsSpace;
+  const preparedSearch = getPreparedSearch(search);
+  const searchBitflags = preparedSearch.bitflags;
 
-  var threshold = (options && options.threshold) || INT_MIN;
-  var limit = (options && options["limit"]) || INT_MAX; // for some reason only limit breaks when minified
+  const threshold = (options && options.threshold) || INT_MIN;
+  const limit = (options && options["limit"]) || INT_MAX; // for some reason only limit breaks when minified
 
-  var resultsLen = 0;
-  var limitedCount = 0;
-  var targetsLen = targets.length;
+  let resultsLen = 0;
+  let limitedCount = 0;
+  const targetsLen = targets.length;
 
   // This code is copy/pasted 3 times for performance reasons [options.keys, options.key, no keys]
 
   // options.key
   if (options && "key" in options && options.key) {
-    var key = options.key;
-    for (var i = 0; i < targetsLen; ++i) {
+    const key = options.key;
+    for (let i = 0; i < targetsLen; ++i) {
       var obj = targets[i];
       var target = getValue(obj, key);
       if (!target) continue;
-      if (!isObj(target)) target = getPrepared(target);
+      if (!isObj(target)) target = prepare(target);
 
       if ((searchBitflags & target._bitflags) !== searchBitflags) continue;
       var result = algorithm(preparedSearch, target);
@@ -160,7 +158,7 @@ export function go(
       // @ts-expect-error
       var target = targets[i];
       if (!target) continue;
-      if (!isObj(target)) target = getPrepared(target);
+      if (!isObj(target)) target = prepare(target);
 
       if ((searchBitflags & target._bitflags) !== searchBitflags) continue;
       var result = algorithm(preparedSearch, target);
@@ -243,24 +241,16 @@ var prepareSearch = (search) => {
   };
 };
 
-var getPrepared = (target: string) => {
-  if (target.length > 999) return prepare(target); // don't cache huge targets
-  var targetPrepared = preparedCache.get(target);
-  if (targetPrepared !== undefined) return targetPrepared;
-  targetPrepared = prepare(target);
-  preparedCache.set(target, targetPrepared);
-  return targetPrepared;
-};
-var getPreparedSearch = (search: string) => {
+function getPreparedSearch(search: string) {
   if (search.length > 999) return prepareSearch(search); // don't cache huge searches
   var searchPrepared = preparedSearchCache.get(search);
   if (searchPrepared !== undefined) return searchPrepared;
   searchPrepared = prepareSearch(search);
   preparedSearchCache.set(search, searchPrepared);
   return searchPrepared;
-};
+}
 
-var all = (search: string, targets, options) => {
+var all = (_search: string, targets, options) => {
   var results = [];
   // @ts-expect-error
   results.total = targets.length;
@@ -272,7 +262,7 @@ var all = (search: string, targets, options) => {
       var obj = targets[i];
       var target = getValue(obj, options.key);
       if (!target) continue;
-      if (!isObj(target)) target = getPrepared(target);
+      if (!isObj(target)) target = prepare(target);
       target.score = INT_MIN;
       target._indexes.len = 0;
       var result = target;
@@ -294,7 +284,7 @@ var all = (search: string, targets, options) => {
     for (var i = 0; i < targets.length; i++) {
       var target = targets[i];
       if (!target) continue;
-      if (!isObj(target)) target = getPrepared(target);
+      if (!isObj(target)) target = prepare(target);
       target.score = INT_MIN;
       target.refIndex = i;
       target._indexes.len = 0;
@@ -343,8 +333,8 @@ var algorithm = (preparedSearch, prepared: Prepared, allowSpaces = false) => {
   if (nextBeginningIndexes === NULL)
     nextBeginningIndexes = prepared._nextBeginningIndexes =
       prepareNextBeginningIndexes(prepared.target);
-  var firstPossibleI = (targetI =
-    matchesSimple[0] === 0 ? 0 : nextBeginningIndexes[matchesSimple[0] - 1]);
+  targetI =
+    matchesSimple[0] === 0 ? 0 : nextBeginningIndexes[matchesSimple[0] - 1];
 
   // Our target string successfully matched all characters in sequence!
   // Let's try a more advanced and strict test to improve the score
@@ -538,33 +528,33 @@ var prepareLowerInfo = (str: string) => {
     _lower: lower,
   };
 };
-var prepareBeginningIndexes = (target) => {
+var prepareBeginningIndexes = (target: string) => {
   var targetLen = target.length;
-  var beginningIndexes = [];
+  var beginningIndexes: number[] = [];
   var beginningIndexesLen = 0;
   var wasUpper = false;
   var wasAlphanum = false;
-  for (var i = 0; i < targetLen; ++i) {
-    var targetCode = target.charCodeAt(i);
-    var isUpper = targetCode >= 65 && targetCode <= 90;
-    var isAlphanum =
+  for (let i = 0; i < targetLen; ++i) {
+    const targetCode = target.charCodeAt(i);
+    const isUpper = targetCode >= 65 && targetCode <= 90;
+    const isAlphanum =
       isUpper ||
       (targetCode >= 97 && targetCode <= 122) ||
       (targetCode >= 48 && targetCode <= 57);
-    var isBeginning = (isUpper && !wasUpper) || !wasAlphanum || !isAlphanum;
+    const isBeginning = (isUpper && !wasUpper) || !wasAlphanum || !isAlphanum;
     wasUpper = isUpper;
     wasAlphanum = isAlphanum;
     if (isBeginning) beginningIndexes[beginningIndexesLen++] = i;
   }
   return beginningIndexes;
 };
-var prepareNextBeginningIndexes = (target: string) => {
-  var targetLen = target.length;
-  var beginningIndexes = prepareBeginningIndexes(target);
-  var nextBeginningIndexes: number[] = []; // new Array(targetLen)     sparse array is too slow
-  var lastIsBeginning = beginningIndexes[0];
-  var lastIsBeginningI = 0;
-  for (var i = 0; i < targetLen; ++i) {
+const prepareNextBeginningIndexes = (target: string) => {
+  const targetLen = target.length;
+  const beginningIndexes = prepareBeginningIndexes(target);
+  const nextBeginningIndexes: number[] = []; // new Array(targetLen)     sparse array is too slow
+  let lastIsBeginning = beginningIndexes[0];
+  let lastIsBeginningI = 0;
+  for (let i = 0; i < targetLen; ++i) {
     if (lastIsBeginning > i) {
       nextBeginningIndexes[i] = lastIsBeginning;
     } else {
@@ -577,13 +567,11 @@ var prepareNextBeginningIndexes = (target: string) => {
 };
 
 export const cleanup = () => {
-  preparedCache.clear();
   preparedSearchCache.clear();
   matchesSimple = [];
   matchesStrict = [];
 };
 
-var preparedCache = new Map();
 var preparedSearchCache = new Map();
 var matchesSimple = [];
 var matchesStrict = [];
@@ -602,7 +590,7 @@ var getValue = (obj, prop) => {
   return obj;
 };
 
-var isObj = (x) => {
+var isObj = (x: string | Prepared): x is Prepared => {
   return typeof x === "object";
 }; // faster as a function
 // var INT_MAX = 9007199254740991; var INT_MIN = -INT_MAX
@@ -672,6 +660,5 @@ var q = fastpriorityqueue(); // reuse this
 
 // TODO: (feature) frecency
 // TODO: (perf) use different sorting algo depending on the # of results?
-// TODO: (perf) preparedCache is a memory leak
 // TODO: (like sublime) backslash === forwardslash
 // TODO: (perf) prepareSearch seems slow
